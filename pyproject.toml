@@ -1,0 +1,38 @@
+[project]
+name = "python-file-trace"
+version = "0.1.0"
+description = "Determine which files are needed to run a Python application by tracing imports"
+readme = "README.md"
+authors = [
+    { name = "Claude", email = "noreply@anthropic.com" }
+]
+requires-python = ">=3.12"
+dependencies = []
+license = "MIT"
+keywords = ["trace", "imports", "dependencies", "bundling", "deployment"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.scripts]
+python-file-trace = "python_file_trace.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/jaredpalmer/autotune"
+Repository = "https://github.com/jaredpalmer/autotune"
+
+[build-system]
+requires = ["uv_build>=0.8.17,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+]
