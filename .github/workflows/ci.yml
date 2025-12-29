@@ -8,11 +8,10 @@ on:
 
 jobs:
   test:
-    name: Test (Bun ${{ matrix.bun-version }}, Python ${{ matrix.python-version }})
+    name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        bun-version: ['latest']
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
       fail-fast: false
 
@@ -23,18 +22,13 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: ${{ matrix.bun-version }}
+          bun-version: latest
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-
-      - name: Verify Python installation
-        run: |
-          python3 --version
-          which python3
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
