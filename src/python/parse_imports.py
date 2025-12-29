@@ -9,7 +9,7 @@ import sys
 from typing import Any, Dict, Optional
 
 
-def _ast_to_str(node: ast.AST) -> str:
+def _ast_to_str(node: ast.AST, depth: int = 0) -> str:
     """
     Convert an AST node to a string representation.
     Uses ast.unparse() for Python 3.9+ or a fallback for earlier versions.
@@ -17,11 +17,15 @@ def _ast_to_str(node: ast.AST) -> str:
     if hasattr(ast, 'unparse'):
         return ast.unparse(node)
     else:
+        # Prevent excessive recursion depth
+        if depth > 10:
+            return "<dynamic>"
+        
         # Fallback for Python 3.8: handle common node types
         if isinstance(node, ast.Name):
             return node.id
         elif isinstance(node, ast.Attribute):
-            value_str = _ast_to_str(node.value)
+            value_str = _ast_to_str(node.value, depth + 1)
             return f"{value_str}.{node.attr}"
         elif isinstance(node, ast.Constant):
             return repr(node.value)
