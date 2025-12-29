@@ -1,0 +1,51 @@
+{
+  "name": "python-file-trace",
+  "version": "0.1.0",
+  "description": "Determine exactly which files are necessary to run a Python application",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "src/python"
+  ],
+  "scripts": {
+    "build": "bunchee",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "prepublishOnly": "bun run build"
+  },
+  "keywords": [
+    "python",
+    "trace",
+    "dependencies",
+    "imports",
+    "bundler"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "bunchee": "^5.0.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "minimatch": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
