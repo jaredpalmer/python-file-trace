@@ -8,6 +8,10 @@ import json
 import sys
 from typing import Any, Dict, Optional
 
+# Maximum recursion depth for _ast_to_str fallback (Python 3.8)
+# This prevents stack overflow for deeply nested attribute access like a.b.c.d...
+MAX_AST_RECURSION_DEPTH = 10
+
 
 def _ast_to_str(node: ast.AST, depth: int = 0) -> str:
     """
@@ -18,7 +22,7 @@ def _ast_to_str(node: ast.AST, depth: int = 0) -> str:
         return ast.unparse(node)
     else:
         # Prevent excessive recursion depth
-        if depth > 10:
+        if depth > MAX_AST_RECURSION_DEPTH:
             return "<dynamic>"
         
         # Fallback for Python 3.8: handle common node types
