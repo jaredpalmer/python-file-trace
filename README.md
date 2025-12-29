@@ -2,6 +2,39 @@
 
 Determine exactly which files are necessary to run a Python application. Similar to [@vercel/nft](https://github.com/vercel/nft) (Node File Trace) but for Python.
 
+## Quick Start
+
+Given a Python application with imports:
+
+```python
+# app.py
+import utils
+from helpers import helper_func
+
+def main():
+    utils.do_something()
+    helper_func()
+```
+
+Trace all files needed to run it:
+
+```typescript
+import { pythonFileTrace } from 'python-file-trace';
+
+const { fileList, reasons } = await pythonFileTrace(['./app.py']);
+
+console.log([...fileList]);
+// [
+//   '/project/app.py',
+//   '/project/utils.py',
+//   '/project/helpers.py'
+// ]
+
+// See why each file was included
+console.log(reasons.get('/project/helpers.py'));
+// { type: 'from', parents: Set { '/project/app.py' }, moduleName: 'helpers' }
+```
+
 ## Features
 
 - Traces all Python imports (standard imports, from imports, relative imports)
