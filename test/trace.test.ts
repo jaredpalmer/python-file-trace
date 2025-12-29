@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { join, resolve } from 'node:path';
 import { pythonFileTrace } from '../src/trace.js';
 import { parseImports, parseImportsRegex } from '../src/parser.js';
