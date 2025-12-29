@@ -379,10 +379,34 @@ async function traceFile(
       if (imp.module) {
         importPromises.push(
           (async () => {
-            const resolved = await ctx.resolver.resolveModule(
-              imp.module!,
-              normalizedPath
-            );
+            let resolved;
+
+            // Handle relative dynamic imports (import_module('.submod', package='pkg'))
+            if (imp.level && imp.level > 0 && imp.package) {
+              // First resolve the package to find its location
+              const packageResolved = await ctx.resolver.resolveModule(
+                imp.package,
+                normalizedPath
+              );
+
+              if (packageResolved && packageResolved.isPackage) {
+                // Extract the module name without the leading dots
+                const moduleName = imp.module!.replace(/^\.+/, '');
+
+                // Resolve relative to the package's __init__.py
+                resolved = await ctx.resolver.resolveRelativeImport(
+                  moduleName,
+                  imp.level,
+                  packageResolved.path
+                );
+              }
+            } else {
+              // Normal absolute dynamic import
+              resolved = await ctx.resolver.resolveModule(
+                imp.module!,
+                normalizedPath
+              );
+            }
 
             if (resolved) {
               addFile(resolved.path, 'dynamic', normalizedPath, ctx, imp.module);
