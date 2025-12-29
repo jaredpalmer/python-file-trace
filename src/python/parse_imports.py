@@ -6,12 +6,41 @@ Used by python-file-trace to analyze Python files.
 import ast
 import json
 import sys
-from typing import Any
+from typing import Any, Dict, Optional
+
+# Maximum recursion depth for _ast_to_str fallback (Python 3.8)
+# This prevents stack overflow for deeply nested attribute access like a.b.c.d...
+MAX_AST_RECURSION_DEPTH = 10
 
 
-def parse_imports(source: str) -> dict[str, Any]:
+def _ast_to_str(node: ast.AST, depth: int = 0) -> str:
+    """
+    Convert an AST node to a string representation.
+    Uses ast.unparse() for Python 3.9+ or a fallback for earlier versions.
+    """
+    if hasattr(ast, 'unparse'):
+        return ast.unparse(node)
+    else:
+        # Prevent excessive recursion depth
+        if depth > MAX_AST_RECURSION_DEPTH:
+            return "<dynamic>"
+        
+        # Fallback for Python 3.8: handle common node types
+        if isinstance(node, ast.Name):
+            return node.id
+        elif isinstance(node, ast.Attribute):
+            value_str = _ast_to_str(node.value, depth + 1)
+            return f"{value_str}.{node.attr}"
+        elif isinstance(node, ast.Constant):
+            return repr(node.value)
+        else:
+            # For other complex expressions, return a generic placeholder
+            return "<dynamic>"
+
+
+def parse_imports(source: str) -> Dict[str, Any]:
     """Parse a Python source file and extract all import information."""
-    result: dict[str, Any] = {
+    result: Dict[str, Any] = {
         "imports": [],
         "fromImports": [],
         "dynamicImports": [],
@@ -62,7 +91,7 @@ def parse_imports(source: str) -> dict[str, Any]:
     return result
 
 
-def extract_dynamic_import(node: ast.Call) -> dict[str, Any] | None:
+def extract_dynamic_import(node: ast.Call) -> Optional[Dict[str, Any]]:
     """Extract dynamic import information from a Call node."""
     # Check for __import__('module')
     if isinstance(node.func, ast.Name) and node.func.id == "__import__":
@@ -77,7 +106,7 @@ def extract_dynamic_import(node: ast.Call) -> dict[str, Any] | None:
                 "type": "builtin",
                 "module": None,
                 "line": node.lineno,
-                "expression": ast.unparse(node.args[0]) if node.args else None
+                "expression": _ast_to_str(node.args[0]) if node.args else None
             }
 
     # Check for importlib.import_module('module')
@@ -96,13 +125,13 @@ def extract_dynamic_import(node: ast.Call) -> dict[str, Any] | None:
                         "type": "importlib",
                         "module": None,
                         "line": node.lineno,
-                        "expression": ast.unparse(node.args[0]) if node.args else None
+                        "expression": _ast_to_str(node.args[0]) if node.args else None
                     }
 
     return None
 
 
-def get_python_env() -> dict[str, Any]:
+def get_python_env() -> Dict[str, Any]:
     """Get Python environment information."""
     import sysconfig
     import site
