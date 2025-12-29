@@ -224,6 +224,73 @@ console.log(stdlib.has('os')); // true
 - `__import__('module')` - Built-in dynamic import
 - `importlib.import_module('module')` - importlib dynamic import
 
+## Quirks & Edge Cases
+
+This table documents which Python import patterns are handled and which remain unsupported.
+
+### ✅ Handled
+
+| Category | Pattern | Example |
+|----------|---------|---------|
+| **Static Imports** | | |
+| Standard import | `import x` | `import os` |
+| Dotted import | `import x.y.z` | `import os.path` |
+| Aliased import | `import x as y` | `import numpy as np` |
+| From import | `from x import y` | `from os import path` |
+| From import with alias | `from x import y as z` | `from os import path as p` |
+| Relative import (current) | `from . import x` | `from . import sibling` |
+| Relative import (parent) | `from .. import x` | `from .. import parent` |
+| Multi-level relative | `from ...pkg import x` | `from ...utils import helper` |
+| Star import | `from x import *` | `from os.path import *` |
+| Comma-separated | `import a, b, c` | `import os, sys, json` |
+| Multi-line (parentheses) | `from x import (\n a,\n b)` | See below |
+| Multi-line (backslash) | `import a, \` continuation | See below |
+| Future imports | `from __future__ import x` | `from __future__ import annotations` |
+| **Dynamic Imports** | | |
+| Built-in | `__import__('x')` | `__import__('mymodule')` |
+| importlib | `importlib.import_module('x')` | `importlib.import_module('mymodule')` |
+| Aliased importlib | `il.import_module('x')` | `import importlib as il; il.import_module('mod')` |
+| Direct import_module | `import_module('x')` | `from importlib import import_module; import_module('mod')` |
+| Aliased import_module | `load('x')` | `from importlib import import_module as load; load('mod')` |
+| With package param | `import_module('.x', 'pkg')` | `import_module('.sub', package='mypackage')` |
+| Keyword arguments | `import_module(name='x')` | `import_module(name='mod', package='pkg')` |
+| **Contextual Imports** | | |
+| Try/except fallback | Both branches traced | `try: import fast\nexcept: import slow` |
+| Conditional imports | All branches traced | `if cond: import a\nelse: import b` |
+| Function-level imports | Imports inside functions | `def f(): import x` |
+| Class-level imports | Imports inside classes | `class C: import x` |
+| **Package Handling** | | |
+| Package with `__init__.py` | Auto-includes init file | `import mypackage` |
+| Submodule imports | Traces full chain | `from pkg.sub import mod` |
+| Namespace packages | PEP 420 support | Packages without `__init__.py` |
+| **False Positive Prevention** | | |
+| String literals | Ignored | `x = "import fake"` |
+| Docstrings | Ignored | `"""import fake"""` |
+| Comments | Ignored | `# import fake` |
+
+### ❌ Not Yet Handled
+
+| Category | Pattern | Example | Reason |
+|----------|---------|---------|--------|
+| **Dynamic/Runtime** | | | |
+| Computed module names | `__import__(f"mod_{x}")` | Dynamic string | Requires runtime analysis |
+| Variable module names | `import_module(config.name)` | Variable reference | Requires runtime analysis |
+| exec/eval imports | `exec("import x")` | Code execution | Security & complexity |
+| runpy.run_module | `runpy.run_module('x')` | Script execution | Different import mechanism |
+| runpy.run_path | `runpy.run_path('x.py')` | Path execution | Different import mechanism |
+| **Lazy Loading** | | | |
+| Module `__getattr__` | PEP 562 lazy imports | `def __getattr__(name): ...` | Requires runtime analysis |
+| `__all__` expansion | What `*` actually imports | `from x import *` | Traces source, not exports |
+| **System-Level** | | | |
+| sys.modules manipulation | `sys.modules['x'] = mod` | Direct manipulation | Requires runtime analysis |
+| Import hooks | `sys.meta_path` | Custom finders/loaders | Plugin system |
+| Zipimport | Imports from .zip/.egg | Archive imports | Not implemented |
+| C extensions | `.pyd`, `.so` files | Binary modules | Different file type |
+| **Edge Cases** | | | |
+| Circular imports | Complex cycles | `a→b→c→a` | May have edge cases |
+| Non-UTF8 encodings | `# -*- coding: xxx -*-` | Rare encodings | May fail to parse |
+| Syntax in dead code | Invalid syntax in `if False:` | Unexecuted branches | AST requires valid syntax |
+
 ## License
 
 MIT
