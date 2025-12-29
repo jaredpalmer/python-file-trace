@@ -6,12 +6,12 @@ Used by python-file-trace to analyze Python files.
 import ast
 import json
 import sys
-from typing import Any
+from typing import Any, Dict, Optional
 
 
-def parse_imports(source: str) -> dict[str, Any]:
+def parse_imports(source: str) -> Dict[str, Any]:
     """Parse a Python source file and extract all import information."""
-    result: dict[str, Any] = {
+    result: Dict[str, Any] = {
         "imports": [],
         "fromImports": [],
         "dynamicImports": [],
@@ -62,7 +62,7 @@ def parse_imports(source: str) -> dict[str, Any]:
     return result
 
 
-def extract_dynamic_import(node: ast.Call) -> dict[str, Any] | None:
+def extract_dynamic_import(node: ast.Call) -> Optional[Dict[str, Any]]:
     """Extract dynamic import information from a Call node."""
     # Check for __import__('module')
     if isinstance(node.func, ast.Name) and node.func.id == "__import__":
@@ -102,7 +102,7 @@ def extract_dynamic_import(node: ast.Call) -> dict[str, Any] | None:
     return None
 
 
-def get_python_env() -> dict[str, Any]:
+def get_python_env() -> Dict[str, Any]:
     """Get Python environment information."""
     import sysconfig
     import site
