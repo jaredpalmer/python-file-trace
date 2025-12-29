@@ -154,7 +154,7 @@ interface WorkflowRun {
 │  └─────────────────────────────────────────────────────────────────────┘ │
 │                                                                          │
 │  ┌─────────────────────────────────────────────────────────────────────┐ │
-│  │                      Vercel Postgres + KV                           │ │
+│  │                       Neon Postgres + Upstash Redis                 │ │
 │  └─────────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────┘
           │                    │                    │
@@ -1058,8 +1058,8 @@ Autotune is designed as a Vercel-native application, leveraging:
 
 - **Vercel Functions** - API routes for all endpoints
 - **Vercel Workflow** - Durable execution for async scoring
-- **Vercel Postgres** - Primary data store
-- **Vercel KV** - Caching and rate limiting
+- **[Neon](https://neon.tech)** - Serverless Postgres database
+- **[Upstash Redis](https://upstash.com)** - Caching and rate limiting (serverless Redis)
 - **Vercel Edge Config** - Feature flags and grader configuration
 - **Vercel Blob** - Large response storage and exports
 
@@ -1085,7 +1085,7 @@ Autotune is designed as a Vercel-native application, leveraging:
          │                          │                          │
          ▼                          ▼                          ▼
 ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
-│ Vercel Postgres │      │   Vercel KV     │      │  Vercel Blob    │
+│  Neon Postgres  │      │  Upstash Redis  │      │  Vercel Blob    │
 │ • Tasks         │      │ • Rate limits   │      │ • Score exports │
 │ • Completions   │      │ • Session cache │      │ • Large payloads│
 │ • Scores        │      │ • Grader status │      │ • Audit logs    │
@@ -1097,10 +1097,14 @@ Autotune is designed as a Vercel-native application, leveraging:
 
 ```bash
 # .env.local
+# Neon Postgres
+DATABASE_URL="postgres://...@...neon.tech/..."
+
+# Upstash Redis
+UPSTASH_REDIS_REST_URL="https://..."
+UPSTASH_REDIS_REST_TOKEN="..."
+
 # Vercel Services
-POSTGRES_URL="postgres://..."
-KV_REST_API_URL="https://..."
-KV_REST_API_TOKEN="..."
 BLOB_READ_WRITE_TOKEN="..."
 
 # Autotune Configuration
@@ -1283,7 +1287,7 @@ autotune/
 │   │   └── hooks.ts              # Webhook utilities
 │   └── utils/
 │       ├── validation.ts         # Zod schemas
-│       └── rate-limit.ts         # Rate limiting with KV
+│       └── rate-limit.ts         # Rate limiting with Upstash Redis
 │
 ├── packages/
 │   ├── sdk/                      # @autotune/sdk - Client SDK
@@ -1342,7 +1346,7 @@ autotune/
 
 ### Phase 1: Core Platform
 - [ ] Core types and Zod validation schemas
-- [ ] Drizzle ORM schema and Vercel Postgres setup
+- [ ] Drizzle ORM schema and Neon Postgres setup
 - [ ] Basic API routes with task/completion/score CRUD
 - [ ] Simple grader protocol implementation
 - [ ] HMAC request/response signing
