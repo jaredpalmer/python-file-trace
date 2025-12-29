@@ -9,6 +9,18 @@ import sys
 from typing import Any, Dict, Optional
 
 
+def _ast_to_str(node: ast.AST) -> str:
+    """
+    Convert an AST node to a string representation.
+    Uses ast.unparse() for Python 3.9+ or a fallback for earlier versions.
+    """
+    if hasattr(ast, 'unparse'):
+        return ast.unparse(node)
+    else:
+        # Fallback for Python 3.8: return a generic placeholder
+        return "<dynamic>"
+
+
 def parse_imports(source: str) -> Dict[str, Any]:
     """Parse a Python source file and extract all import information."""
     result: Dict[str, Any] = {
@@ -77,7 +89,7 @@ def extract_dynamic_import(node: ast.Call) -> Optional[Dict[str, Any]]:
                 "type": "builtin",
                 "module": None,
                 "line": node.lineno,
-                "expression": ast.unparse(node.args[0]) if node.args else None
+                "expression": _ast_to_str(node.args[0]) if node.args else None
             }
 
     # Check for importlib.import_module('module')
@@ -96,7 +108,7 @@ def extract_dynamic_import(node: ast.Call) -> Optional[Dict[str, Any]]:
                         "type": "importlib",
                         "module": None,
                         "line": node.lineno,
-                        "expression": ast.unparse(node.args[0]) if node.args else None
+                        "expression": _ast_to_str(node.args[0]) if node.args else None
                     }
 
     return None
