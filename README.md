@@ -215,14 +215,62 @@ console.log(stdlib.has('os')); // true
 
 ### Import Types Handled
 
-- `import module` - Standard module import
-- `import module.submodule` - Dotted module import
-- `from module import name` - From import
-- `from . import name` - Relative import (current package)
-- `from .. import name` - Relative import (parent package)
-- `from ...module import name` - Multi-level relative import
-- `__import__('module')` - Built-in dynamic import
-- `importlib.import_module('module')` - importlib dynamic import
+| Import Pattern | Example | Supported |
+|----------------|---------|-----------|
+| Standard import | `import os` | ✅ |
+| Dotted import | `import os.path` | ✅ |
+| Aliased import | `import numpy as np` | ✅ |
+| Comma-separated | `import os, sys, json` | ✅ |
+| From import | `from os import path` | ✅ |
+| From import multiple | `from os import path, getcwd` | ✅ |
+| From import aliased | `from os import path as p` | ✅ |
+| Star import | `from os.path import *` | ✅ |
+| Relative import (current) | `from . import sibling` | ✅ |
+| Relative import (parent) | `from .. import parent` | ✅ |
+| Relative import (deep) | `from ...pkg import module` | ✅ |
+| Package import | `import mypackage` (with `__init__.py`) | ✅ |
+| Namespace package | `import mypkg` (PEP 420, no `__init__.py`) | ✅ |
+
+### Dynamic Import Patterns
+
+| Pattern | Example | Supported |
+|---------|---------|-----------|
+| Built-in `__import__` | `__import__('module')` | ✅ |
+| importlib standard | `importlib.import_module('module')` | ✅ |
+| importlib aliased | `import importlib as il; il.import_module('mod')` | ✅ |
+| Direct import_module | `from importlib import import_module; import_module('mod')` | ✅ |
+| Aliased import_module | `from importlib import import_module as load; load('mod')` | ✅ |
+| With package param | `import_module('.sub', package='pkg')` | ✅ |
+| With keyword args | `import_module(name='mod', package='pkg')` | ✅ |
+| Non-static expression | `import_module(get_name())` | ⚠️ Warning |
+
+### Edge Cases Handled
+
+| Edge Case | Description | Status |
+|-----------|-------------|--------|
+| Try/except fallbacks | `try: import fast except: import slow` | ✅ Both branches traced |
+| Conditional imports | `if WINDOWS: import win else: import unix` | ✅ All branches traced |
+| Function-scoped imports | `def f(): import module` | ✅ Traced |
+| Multi-line with backslash | `import a, \`<br>`    b, c` | ✅ Handled |
+| Multi-line with parens | `from x import (`<br>`    a, b)` | ✅ Handled |
+| Imports in strings | `x = "import fake"` | ✅ Ignored (not traced) |
+| Imports in docstrings | `"""import fake"""` | ✅ Ignored (not traced) |
+| Imports in comments | `# import fake` | ✅ Ignored (not traced) |
+| `__future__` imports | `from __future__ import annotations` | ✅ Parsed |
+| Circular imports | A imports B, B imports A | ✅ Handled |
+| Missing modules | Import of non-existent module | ✅ Added to `unresolved` |
+| Syntax errors | Invalid Python syntax | ✅ Partial parsing with warning |
+
+### Limitations
+
+| Limitation | Description |
+|------------|-------------|
+| Runtime-generated names | `import_module(f"plugin_{name}")` cannot be statically analyzed |
+| `exec`/`eval` imports | `exec("import module")` not detected |
+| Plugin loaders | Custom import machinery not supported |
+| Lazy `__getattr__` | Module-level lazy loading via `__getattr__` not traced |
+| Zip imports | Imports from `.zip` files not supported |
+| C extensions | `.so`/`.pyd` files detected but not analyzed |
 
 ## License
 
