@@ -3,6 +3,8 @@
 Python AST parser for extracting import statements.
 Used by python-file-trace to analyze Python files.
 """
+from __future__ import annotations
+
 import ast
 import json
 import sys
