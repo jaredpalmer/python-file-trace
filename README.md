@@ -41,6 +41,25 @@ console.log(reasons.get('/project/helpers.py'));
 // { type: 'from', parents: Set { '/project/app.py' }, moduleName: 'helpers' }
 ```
 
+## Table of Contents
+
+- [Features](#features)
+- [Examples](#examples)
+  - [Basic Usage](#basic-usage)
+  - [With Caching](#with-caching)
+  - [Ignoring Files](#ignoring-files)
+  - [Custom Module Paths](#custom-module-paths)
+- [API Reference](#api-reference)
+  - [pythonFileTrace](#pythonfiletracefiles-options)
+  - [parseImports](#parseimportssource-options)
+  - [parseImportsRegex](#parseimportsregexsource)
+  - [getPythonEnv](#getpythonenvoptions)
+  - [getStdlibModules](#getstdlibmodulesoptions)
+- [How It Works](#how-it-works)
+  - [Import Types Handled](#import-types-handled)
+- [Quirks & Edge Cases](#quirks--edge-cases)
+- [License](#license)
+
 ## Features
 
 - Traces all Python imports (standard imports, from imports, relative imports)
@@ -51,7 +70,9 @@ console.log(reasons.get('/project/helpers.py'));
 - Configurable standard library exclusion
 - Caching support for multiple traces
 
-## Usage
+## Examples
+
+### Basic Usage
 
 ```typescript
 import { pythonFileTrace } from 'python-file-trace';
@@ -66,7 +87,43 @@ const result = await pythonFileTrace(['./app.py'], {
 // result.unresolved - Map of unresolved imports
 ```
 
-## API
+### With Caching
+
+```typescript
+import { pythonFileTrace, type TraceCache } from 'python-file-trace';
+
+// Create a cache for reuse
+const cache: TraceCache = {
+  fileContents: new Map(),
+  parsedImports: new Map(),
+  resolvedModules: new Map(),
+  stdlibModules: new Set(),
+};
+
+// First trace
+const result1 = await pythonFileTrace(['./app1.py'], { cache });
+
+// Second trace reuses cached data
+const result2 = await pythonFileTrace(['./app2.py'], { cache });
+```
+
+### Ignoring Files
+
+```typescript
+const { fileList } = await pythonFileTrace(['./main.py'], {
+  ignore: ['**/tests/**', '**/*_test.py'],
+});
+```
+
+### Custom Module Paths
+
+```typescript
+const { fileList } = await pythonFileTrace(['./main.py'], {
+  modulePaths: ['/path/to/custom/modules'],
+});
+```
+
+## API Reference
 
 ### `pythonFileTrace(files, options?)`
 
@@ -112,45 +169,7 @@ interface FileReason {
 }
 ```
 
-## Examples
-
-### With Caching
-
-```typescript
-import { pythonFileTrace, type TraceCache } from 'python-file-trace';
-
-// Create a cache for reuse
-const cache: TraceCache = {
-  fileContents: new Map(),
-  parsedImports: new Map(),
-  resolvedModules: new Map(),
-  stdlibModules: new Set(),
-};
-
-// First trace
-const result1 = await pythonFileTrace(['./app1.py'], { cache });
-
-// Second trace reuses cached data
-const result2 = await pythonFileTrace(['./app2.py'], { cache });
-```
-
-### Ignoring Files
-
-```typescript
-const { fileList } = await pythonFileTrace(['./main.py'], {
-  ignore: ['**/tests/**', '**/*_test.py'],
-});
-```
-
-### Custom Module Paths
-
-```typescript
-const { fileList } = await pythonFileTrace(['./main.py'], {
-  modulePaths: ['/path/to/custom/modules'],
-});
-```
-
-## Additional APIs
+---
 
 ### `parseImports(source, options?)`
 
@@ -170,6 +189,8 @@ from . import utils
 // imports.dynamicImports - Dynamic imports
 ```
 
+---
+
 ### `parseImportsRegex(source)`
 
 Fallback regex-based parser (less accurate but works without Python).
@@ -179,6 +200,8 @@ import { parseImportsRegex } from 'python-file-trace';
 
 const imports = parseImportsRegex(source);
 ```
+
+---
 
 ### `getPythonEnv(options?)`
 
@@ -193,6 +216,8 @@ const env = await getPythonEnv();
 // env.stdlibPath - Standard library path
 // env.sitePackages - Site-packages directories
 ```
+
+---
 
 ### `getStdlibModules(options?)`
 
@@ -228,7 +253,7 @@ console.log(stdlib.has('os')); // true
 
 This table documents which Python import patterns are handled and which remain unsupported.
 
-### ✅ Handled
+### Handled
 
 | Category | Pattern | Example |
 |----------|---------|---------|
@@ -268,7 +293,7 @@ This table documents which Python import patterns are handled and which remain u
 | Docstrings | Ignored | `"""import fake"""` |
 | Comments | Ignored | `# import fake` |
 
-### ❌ Not Yet Handled
+### Not Yet Handled
 
 | Category | Pattern | Example | Reason |
 |----------|---------|---------|--------|
