@@ -8,8 +8,12 @@ import json
 import sys
 from typing import Any, Dict, Optional
 
+# Maximum recursion depth for _ast_to_str fallback (Python 3.8)
+# This prevents stack overflow for deeply nested attribute access like a.b.c.d...
+MAX_AST_RECURSION_DEPTH = 10
 
-def _ast_to_str(node: ast.AST) -> str:
+
+def _ast_to_str(node: ast.AST, depth: int = 0) -> str:
     """
     Convert an AST node to a string representation.
     Uses ast.unparse() for Python 3.9+ or a fallback for earlier versions.
@@ -17,8 +21,21 @@ def _ast_to_str(node: ast.AST) -> str:
     if hasattr(ast, 'unparse'):
         return ast.unparse(node)
     else:
-        # Fallback for Python 3.8: return a generic placeholder
-        return "<dynamic>"
+        # Prevent excessive recursion depth
+        if depth > MAX_AST_RECURSION_DEPTH:
+            return "<dynamic>"
+        
+        # Fallback for Python 3.8: handle common node types
+        if isinstance(node, ast.Name):
+            return node.id
+        elif isinstance(node, ast.Attribute):
+            value_str = _ast_to_str(node.value, depth + 1)
+            return f"{value_str}.{node.attr}"
+        elif isinstance(node, ast.Constant):
+            return repr(node.value)
+        else:
+            # For other complex expressions, return a generic placeholder
+            return "<dynamic>"
 
 
 def parse_imports(source: str) -> Dict[str, Any]:
