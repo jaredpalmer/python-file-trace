@@ -4,6 +4,12 @@ Determine exactly which files are necessary to run a Python application. Similar
 
 ## Quick Start
 
+```bash
+npm install python-file-trace
+```
+
+> **Requires:** Node.js 18+ and Python 3.8+ (falls back to regex parsing if Python unavailable)
+
 Given a Python application with imports:
 
 ```python
@@ -44,17 +50,6 @@ console.log(reasons.get('/project/helpers.py'));
 - Provides detailed reasons for each file's inclusion
 - Configurable standard library exclusion
 - Caching support for multiple traces
-
-## Installation
-
-```bash
-npm install python-file-trace
-```
-
-## Requirements
-
-- Node.js >= 18
-- Python 3.8+ (for AST parsing, falls back to regex parser if unavailable)
 
 ## Usage
 
@@ -119,16 +114,6 @@ interface FileReason {
 
 ## Examples
 
-### Basic Usage
-
-```typescript
-import { pythonFileTrace } from 'python-file-trace';
-
-const { fileList } = await pythonFileTrace(['./main.py']);
-
-console.log('Files needed:', [...fileList]);
-```
-
 ### With Caching
 
 ```typescript
@@ -145,16 +130,8 @@ const cache: TraceCache = {
 // First trace
 const result1 = await pythonFileTrace(['./app1.py'], { cache });
 
-// Second trace (faster due to caching)
+// Second trace reuses cached data
 const result2 = await pythonFileTrace(['./app2.py'], { cache });
-```
-
-### Excluding Standard Library
-
-```typescript
-const { fileList } = await pythonFileTrace(['./main.py'], {
-  includeStdlib: false,  // Default: only trace local modules
-});
 ```
 
 ### Ignoring Files
