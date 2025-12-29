@@ -139,6 +139,8 @@ export interface DynamicImportInfo {
   module?: string; // Only if statically analyzable
   line: number;
   expression?: string; // The raw expression if not statically analyzable
+  package?: string; // For importlib.import_module('.mod', package='pkg')
+  level?: number; // Relative import level for dynamic imports with package
 }
 
 /**

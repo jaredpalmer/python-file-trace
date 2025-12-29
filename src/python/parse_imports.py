@@ -57,6 +57,26 @@ def parse_imports(source: str) -> Dict[str, Any]:
         })
         return result
 
+    # Track aliases and imports of importlib functions for dynamic import detection
+    # Maps local name -> original name (e.g., {"il": "importlib", "imp_mod": "import_module"})
+    importlib_aliases: Dict[str, str] = {}
+    import_module_names: set = set()  # Names that refer to import_module function
+
+    # First pass: collect importlib aliases and import_module imports
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                # import importlib OR import importlib as il
+                if alias.name == "importlib":
+                    importlib_aliases[alias.asname or "importlib"] = "importlib"
+        elif isinstance(node, ast.ImportFrom):
+            # from importlib import import_module OR from importlib import import_module as imp
+            if node.module == "importlib" and node.level == 0:
+                for alias in node.names:
+                    if alias.name == "import_module":
+                        import_module_names.add(alias.asname or "import_module")
+
+    # Second pass: extract all imports
     for node in ast.walk(tree):
         # Handle: import x, import x.y, import x as y
         if isinstance(node, ast.Import):
@@ -82,17 +102,32 @@ def parse_imports(source: str) -> Dict[str, Any]:
                 "line": node.lineno
             })
 
-        # Handle: __import__('module'), importlib.import_module('module')
+        # Handle: __import__('module'), importlib.import_module('module'), aliased variants
         elif isinstance(node, ast.Call):
-            dynamic = extract_dynamic_import(node)
+            dynamic = extract_dynamic_import(node, importlib_aliases, import_module_names)
             if dynamic:
                 result["dynamicImports"].append(dynamic)
 
     return result
 
 
-def extract_dynamic_import(node: ast.Call) -> Optional[Dict[str, Any]]:
-    """Extract dynamic import information from a Call node."""
+def extract_dynamic_import(
+    node: ast.Call,
+    importlib_aliases: Optional[Dict[str, str]] = None,
+    import_module_names: Optional[set] = None
+) -> Optional[Dict[str, Any]]:
+    """Extract dynamic import information from a Call node.
+
+    Args:
+        node: The AST Call node to analyze
+        importlib_aliases: Dict mapping local names to "importlib" (for aliased imports)
+        import_module_names: Set of names that refer to import_module function
+    """
+    if importlib_aliases is None:
+        importlib_aliases = {"importlib": "importlib"}
+    if import_module_names is None:
+        import_module_names = set()
+
     # Check for __import__('module')
     if isinstance(node.func, ast.Name) and node.func.id == "__import__":
         if node.args and isinstance(node.args[0], ast.Constant):
@@ -109,26 +144,86 @@ def extract_dynamic_import(node: ast.Call) -> Optional[Dict[str, Any]]:
                 "expression": _ast_to_str(node.args[0]) if node.args else None
             }
 
-    # Check for importlib.import_module('module')
+    # Check for direct import_module('module') call (from importlib import import_module)
+    if isinstance(node.func, ast.Name) and node.func.id in import_module_names:
+        return _extract_import_module_call(node)
+
+    # Check for importlib.import_module('module') or aliased variants (il.import_module)
     if isinstance(node.func, ast.Attribute):
         if node.func.attr == "import_module":
-            # Check if it's importlib.import_module or something.import_module
-            if isinstance(node.func.value, ast.Name) and node.func.value.id == "importlib":
-                if node.args and isinstance(node.args[0], ast.Constant):
-                    return {
-                        "type": "importlib",
-                        "module": node.args[0].value,
-                        "line": node.lineno
-                    }
-                else:
-                    return {
-                        "type": "importlib",
-                        "module": None,
-                        "line": node.lineno,
-                        "expression": _ast_to_str(node.args[0]) if node.args else None
-                    }
+            if isinstance(node.func.value, ast.Name):
+                # Check if it's importlib.import_module or an aliased variant
+                # Also allow "importlib" even if not explicitly imported (for backwards compatibility)
+                if node.func.value.id in importlib_aliases or node.func.value.id == "importlib":
+                    return _extract_import_module_call(node)
 
     return None
+
+
+def _extract_import_module_call(node: ast.Call) -> Dict[str, Any]:
+    """Extract import information from an import_module() call.
+
+    Handles both positional and keyword arguments:
+    - import_module('module')
+    - import_module('.submodule', 'package')
+    - import_module('.submodule', package='package')
+    - import_module(name='.submodule', package='package')
+    """
+    module_name = None
+    package_name = None
+    expression = None
+
+    # Extract first positional arg (module name)
+    if node.args:
+        first_arg = node.args[0]
+        if isinstance(first_arg, ast.Constant) and isinstance(first_arg.value, str):
+            module_name = first_arg.value
+        else:
+            expression = _ast_to_str(first_arg)
+
+    # Check for 'name' keyword argument
+    for kw in node.keywords:
+        if kw.arg == "name" and isinstance(kw.value, ast.Constant):
+            module_name = kw.value.value
+            break
+
+    # Extract package parameter (2nd positional or keyword)
+    if len(node.args) >= 2:
+        second_arg = node.args[1]
+        if isinstance(second_arg, ast.Constant) and isinstance(second_arg.value, str):
+            package_name = second_arg.value
+
+    # Check for 'package' keyword argument
+    for kw in node.keywords:
+        if kw.arg == "package" and isinstance(kw.value, ast.Constant):
+            package_name = kw.value.value
+            break
+
+    result: Dict[str, Any] = {
+        "type": "importlib",
+        "line": node.lineno
+    }
+
+    if module_name is not None:
+        # Handle relative imports with package parameter
+        if module_name.startswith('.') and package_name:
+            # Count leading dots for level
+            level = 0
+            for char in module_name:
+                if char == '.':
+                    level += 1
+                else:
+                    break
+            result["module"] = module_name
+            result["package"] = package_name
+            result["level"] = level
+        else:
+            result["module"] = module_name
+    else:
+        result["module"] = None
+        result["expression"] = expression
+
+    return result
 
 
 def get_python_env() -> Dict[str, Any]:
