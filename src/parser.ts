@@ -272,6 +272,58 @@ export function parseImportsRegex(source: string): ParsedImports {
         module: directImportModuleMatch[1],
         line: lineNum,
       });
+      continue;
+    }
+
+    // Match: runpy.run_module('module') or aliased variants (rp.run_module)
+    const runModuleMatch = line.match(
+      /(?:runpy|\w+)\.run_module\s*\(\s*['"]([^'"]+)['"]/
+    );
+    if (runModuleMatch) {
+      dynamicImports.push({
+        type: 'runpy',
+        module: runModuleMatch[1],
+        line: lineNum,
+      });
+      continue;
+    }
+
+    // Match: run_module('module') - direct call after from runpy import run_module
+    const directRunModuleMatch = line.match(
+      /\brun_module\s*\(\s*['"]([^'"]+)['"]/
+    );
+    if (directRunModuleMatch && !line.includes('.run_module')) {
+      dynamicImports.push({
+        type: 'runpy',
+        module: directRunModuleMatch[1],
+        line: lineNum,
+      });
+      continue;
+    }
+
+    // Match: runpy.run_path('path') or aliased variants (rp.run_path)
+    const runPathMatch = line.match(
+      /(?:runpy|\w+)\.run_path\s*\(\s*['"]([^'"]+)['"]/
+    );
+    if (runPathMatch) {
+      dynamicImports.push({
+        type: 'runpy',
+        path: runPathMatch[1],
+        line: lineNum,
+      });
+      continue;
+    }
+
+    // Match: run_path('path') - direct call after from runpy import run_path
+    const directRunPathMatch = line.match(
+      /\brun_path\s*\(\s*['"]([^'"]+)['"]/
+    );
+    if (directRunPathMatch && !line.includes('.run_path')) {
+      dynamicImports.push({
+        type: 'runpy',
+        path: directRunPathMatch[1],
+        line: lineNum,
+      });
     }
   }
 
