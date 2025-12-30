@@ -62,19 +62,34 @@ def parse_imports(source: str) -> Dict[str, Any]:
     importlib_aliases: Dict[str, str] = {}
     import_module_names: set = set()  # Names that refer to import_module function
 
-    # First pass: collect importlib aliases and import_module imports
+    # Track aliases and imports of runpy functions
+    runpy_aliases: Dict[str, str] = {}  # e.g., {"rp": "runpy"}
+    run_module_names: set = set()  # Names that refer to run_module function
+    run_path_names: set = set()  # Names that refer to run_path function
+
+    # First pass: collect importlib/runpy aliases and function imports
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
                 # import importlib OR import importlib as il
                 if alias.name == "importlib":
                     importlib_aliases[alias.asname or "importlib"] = "importlib"
+                # import runpy OR import runpy as rp
+                if alias.name == "runpy":
+                    runpy_aliases[alias.asname or "runpy"] = "runpy"
         elif isinstance(node, ast.ImportFrom):
             # from importlib import import_module OR from importlib import import_module as imp
             if node.module == "importlib" and node.level == 0:
                 for alias in node.names:
                     if alias.name == "import_module":
                         import_module_names.add(alias.asname or "import_module")
+            # from runpy import run_module/run_path
+            if node.module == "runpy" and node.level == 0:
+                for alias in node.names:
+                    if alias.name == "run_module":
+                        run_module_names.add(alias.asname or "run_module")
+                    elif alias.name == "run_path":
+                        run_path_names.add(alias.asname or "run_path")
 
     # Second pass: extract all imports
     for node in ast.walk(tree):
@@ -107,6 +122,11 @@ def parse_imports(source: str) -> Dict[str, Any]:
             dynamic = extract_dynamic_import(node, importlib_aliases, import_module_names)
             if dynamic:
                 result["dynamicImports"].append(dynamic)
+            else:
+                # Check for runpy.run_module/run_path calls
+                runpy_call = extract_runpy_call(node, runpy_aliases, run_module_names, run_path_names)
+                if runpy_call:
+                    result["dynamicImports"].append(runpy_call)
 
     return result
 
@@ -222,6 +242,100 @@ def _extract_import_module_call(node: ast.Call) -> Dict[str, Any]:
     else:
         result["module"] = None
         result["expression"] = expression
+
+    return result
+
+
+def extract_runpy_call(
+    node: ast.Call,
+    runpy_aliases: Optional[Dict[str, str]] = None,
+    run_module_names: Optional[set] = None,
+    run_path_names: Optional[set] = None
+) -> Optional[Dict[str, Any]]:
+    """Extract runpy.run_module/run_path information from a Call node.
+
+    Args:
+        node: The AST Call node to analyze
+        runpy_aliases: Dict mapping local names to "runpy" (for aliased imports)
+        run_module_names: Set of names that refer to run_module function
+        run_path_names: Set of names that refer to run_path function
+    """
+    if runpy_aliases is None:
+        runpy_aliases = {"runpy": "runpy"}
+    if run_module_names is None:
+        run_module_names = set()
+    if run_path_names is None:
+        run_path_names = set()
+
+    func_type = None  # 'run_module' or 'run_path'
+
+    # Check for direct run_module/run_path calls (from runpy import run_module)
+    if isinstance(node.func, ast.Name):
+        if node.func.id in run_module_names:
+            func_type = 'run_module'
+        elif node.func.id in run_path_names:
+            func_type = 'run_path'
+
+    # Check for runpy.run_module/run_path or aliased variants (rp.run_module)
+    if isinstance(node.func, ast.Attribute):
+        if node.func.attr in ("run_module", "run_path"):
+            if isinstance(node.func.value, ast.Name):
+                # Check if it's runpy.X or an aliased variant
+                if node.func.value.id in runpy_aliases or node.func.value.id == "runpy":
+                    func_type = node.func.attr
+
+    if func_type is None:
+        return None
+
+    return _extract_runpy_call(node, func_type)
+
+
+def _extract_runpy_call(node: ast.Call, func_type: str) -> Dict[str, Any]:
+    """Extract information from a run_module() or run_path() call.
+
+    run_module signature: run_module(mod_name, run_name=None, ...)
+    run_path signature: run_path(path_name, run_name=None, ...)
+
+    Handles both positional and keyword arguments.
+    """
+    value = None
+    expression = None
+
+    # Extract first positional arg
+    if node.args:
+        first_arg = node.args[0]
+        if isinstance(first_arg, ast.Constant) and isinstance(first_arg.value, str):
+            value = first_arg.value
+        else:
+            expression = _ast_to_str(first_arg)
+
+    # Check for keyword argument (mod_name for run_module, path_name for run_path)
+    kw_name = "mod_name" if func_type == "run_module" else "path_name"
+    for kw in node.keywords:
+        if kw.arg == kw_name:
+            if isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+                value = kw.value.value
+            else:
+                expression = _ast_to_str(kw.value)
+            break
+
+    result: Dict[str, Any] = {
+        "type": "runpy",
+        "line": node.lineno
+    }
+
+    if func_type == "run_module":
+        if value is not None:
+            result["module"] = value
+        else:
+            result["module"] = None
+            result["expression"] = expression
+    else:  # run_path
+        if value is not None:
+            result["path"] = value
+        else:
+            result["path"] = None
+            result["expression"] = expression
 
     return result
 

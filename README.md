@@ -279,6 +279,10 @@ This table documents which Python import patterns are handled and which remain u
 | Aliased import_module | `load('x')` | `from importlib import import_module as load; load('mod')` |
 | With package param | `import_module('.x', 'pkg')` | `import_module('.sub', package='mypackage')` |
 | Keyword arguments | `import_module(name='x')` | `import_module(name='mod', package='pkg')` |
+| runpy.run_module | `runpy.run_module('x')` | `runpy.run_module('mymodule')` |
+| runpy.run_path | `runpy.run_path('x.py')` | `runpy.run_path('scripts/runner.py')` |
+| Aliased runpy | `rp.run_module('x')` | `import runpy as rp; rp.run_module('mod')` |
+| Direct run_module | `run_module('x')` | `from runpy import run_module; run_module('mod')` |
 | **Contextual Imports** | | |
 | Try/except fallback | Both branches traced | `try: import fast\nexcept: import slow` |
 | Conditional imports | All branches traced | `if cond: import a\nelse: import b` |
@@ -301,8 +305,6 @@ This table documents which Python import patterns are handled and which remain u
 | Computed module names | `__import__(f"mod_{x}")` | Dynamic string | Requires runtime analysis |
 | Variable module names | `import_module(config.name)` | Variable reference | Requires runtime analysis |
 | exec/eval imports | `exec("import x")` | Code execution | Security & complexity |
-| runpy.run_module | `runpy.run_module('x')` | Script execution | Different import mechanism |
-| runpy.run_path | `runpy.run_path('x.py')` | Path execution | Different import mechanism |
 | **Lazy Loading** | | | |
 | Module `__getattr__` | PEP 562 lazy imports | `def __getattr__(name): ...` | Requires runtime analysis |
 | `__all__` expansion | What `*` actually imports | `from x import *` | Traces source, not exports |

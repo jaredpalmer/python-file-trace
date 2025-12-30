@@ -1,5 +1,5 @@
-import { readFile as fsReadFile } from 'node:fs/promises';
-import { resolve, relative, isAbsolute, dirname } from 'node:path';
+import { readFile as fsReadFile, stat as fsStat } from 'node:fs/promises';
+import { resolve, relative, isAbsolute, dirname, join } from 'node:path';
 import { minimatch } from 'minimatch';
 import type {
   PythonFileTraceOptions,
@@ -416,6 +416,32 @@ async function traceFile(
               }
             } else if (!ctx.resolver.isStdlibModule(imp.module!)) {
               addUnresolved(imp.module!, normalizedPath, ctx);
+            }
+          })()
+        );
+      } else if (imp.path) {
+        // Handle runpy.run_path - resolves a file path
+        importPromises.push(
+          (async () => {
+            // Resolve the path relative to the importing file's directory
+            const fileDir = dirname(normalizedPath);
+            const targetPath = isAbsolute(imp.path!)
+              ? imp.path!
+              : resolve(fileDir, imp.path!);
+
+            try {
+              // Check if the file exists
+              const stats = ctx.options.stat
+                ? await ctx.options.stat(targetPath)
+                : await fsStat(targetPath);
+
+              if (stats.isFile) {
+                addFile(targetPath, 'dynamic', normalizedPath, ctx, imp.path);
+                await traceFile(targetPath, depth + 1, ctx);
+              }
+            } catch {
+              // File doesn't exist - add to unresolved
+              addUnresolved(imp.path!, normalizedPath, ctx);
             }
           })()
         );

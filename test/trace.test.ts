@@ -427,6 +427,76 @@ mod = il.import_module('dynamic_mod')
       module: 'dynamic_mod',
     });
   });
+
+  it('should parse runpy.run_module with regex fallback', () => {
+    const source = `
+import runpy
+result = runpy.run_module('target_module')
+`;
+    const result = parseImportsRegex(source);
+
+    expect(result.dynamicImports).toHaveLength(1);
+    expect(result.dynamicImports[0]).toMatchObject({
+      type: 'runpy',
+      module: 'target_module',
+    });
+  });
+
+  it('should parse aliased runpy.run_module with regex fallback', () => {
+    const source = `
+import runpy as rp
+result = rp.run_module('aliased_target')
+`;
+    const result = parseImportsRegex(source);
+
+    expect(result.dynamicImports).toHaveLength(1);
+    expect(result.dynamicImports[0]).toMatchObject({
+      type: 'runpy',
+      module: 'aliased_target',
+    });
+  });
+
+  it('should parse direct run_module call with regex fallback', () => {
+    const source = `
+from runpy import run_module
+result = run_module('direct_target')
+`;
+    const result = parseImportsRegex(source);
+
+    expect(result.dynamicImports).toHaveLength(1);
+    expect(result.dynamicImports[0]).toMatchObject({
+      type: 'runpy',
+      module: 'direct_target',
+    });
+  });
+
+  it('should parse runpy.run_path with regex fallback', () => {
+    const source = `
+import runpy
+result = runpy.run_path('scripts/runner.py')
+`;
+    const result = parseImportsRegex(source);
+
+    expect(result.dynamicImports).toHaveLength(1);
+    expect(result.dynamicImports[0]).toMatchObject({
+      type: 'runpy',
+      path: 'scripts/runner.py',
+    });
+  });
+
+  it('should parse direct run_path call with regex fallback', () => {
+    const source = `
+from runpy import run_path
+result = run_path('scripts/direct_runner.py')
+`;
+    const result = parseImportsRegex(source);
+
+    expect(result.dynamicImports).toHaveLength(1);
+    expect(result.dynamicImports[0]).toMatchObject({
+      type: 'runpy',
+      path: 'scripts/direct_runner.py',
+    });
+  });
 });
 
 describe('edge cases', () => {
@@ -679,6 +749,164 @@ from ....pkg.sub import module
       expect(fileNames).toContain('__init__.py');
       expect(fileNames).toContain('module_a.py');
       expect(fileNames).toContain('module_b.py');
+    });
+  });
+
+  describe('runpy edge cases', () => {
+    it('should parse runpy.run_module with static module name', async () => {
+      const source = `
+import runpy
+result = runpy.run_module('target_module')
+`;
+      const result = await parseImports(source);
+
+      expect(result.dynamicImports).toHaveLength(1);
+      expect(result.dynamicImports[0]).toMatchObject({
+        type: 'runpy',
+        module: 'target_module',
+      });
+    });
+
+    it('should parse runpy.run_module with run_name parameter', async () => {
+      const source = `
+import runpy
+result = runpy.run_module('target_module', run_name='__main__')
+`;
+      const result = await parseImports(source);
+
+      expect(result.dynamicImports).toHaveLength(1);
+      expect(result.dynamicImports[0]).toMatchObject({
+        type: 'runpy',
+        module: 'target_module',
+      });
+    });
+
+    it('should parse runpy.run_path with static path', async () => {
+      const source = `
+import runpy
+result = runpy.run_path('scripts/runner.py')
+`;
+      const result = await parseImports(source);
+
+      expect(result.dynamicImports).toHaveLength(1);
+      expect(result.dynamicImports[0]).toMatchObject({
+        type: 'runpy',
+        path: 'scripts/runner.py',
+      });
+    });
+
+    it('should parse aliased runpy imports', async () => {
+      const source = `
+import runpy as rp
+result = rp.run_module('aliased_target')
+`;
+      const result = await parseImports(source);
+
+      expect(result.dynamicImports).toHaveLength(1);
+      expect(result.dynamicImports[0]).toMatchObject({
+        type: 'runpy',
+        module: 'aliased_target',
+      });
+    });
+
+    it('should parse from runpy import run_module', async () => {
+      const source = `
+from runpy import run_module
+result = run_module('direct_target')
+`;
+      const result = await parseImports(source);
+
+      expect(result.dynamicImports).toHaveLength(1);
+      expect(result.dynamicImports[0]).toMatchObject({
+        type: 'runpy',
+        module: 'direct_target',
+      });
+    });
+
+    it('should parse from runpy import run_path', async () => {
+      const source = `
+from runpy import run_path
+result = run_path('scripts/direct_runner.py')
+`;
+      const result = await parseImports(source);
+
+      expect(result.dynamicImports).toHaveLength(1);
+      expect(result.dynamicImports[0]).toMatchObject({
+        type: 'runpy',
+        path: 'scripts/direct_runner.py',
+      });
+    });
+
+    it('should handle run_module with mod_name keyword', async () => {
+      const source = `
+import runpy
+result = runpy.run_module(mod_name='keyword_target')
+`;
+      const result = await parseImports(source);
+
+      expect(result.dynamicImports).toHaveLength(1);
+      expect(result.dynamicImports[0]).toMatchObject({
+        type: 'runpy',
+        module: 'keyword_target',
+      });
+    });
+
+    it('should handle run_path with path_name keyword', async () => {
+      const source = `
+import runpy
+result = runpy.run_path(path_name='scripts/keyword_runner.py')
+`;
+      const result = await parseImports(source);
+
+      expect(result.dynamicImports).toHaveLength(1);
+      expect(result.dynamicImports[0]).toMatchObject({
+        type: 'runpy',
+        path: 'scripts/keyword_runner.py',
+      });
+    });
+
+    it('should report expression for dynamic run_module arguments', async () => {
+      const source = `
+import runpy
+module_name = "dynamic"
+result = runpy.run_module(module_name)
+`;
+      const result = await parseImports(source);
+
+      expect(result.dynamicImports).toHaveLength(1);
+      expect(result.dynamicImports[0]).toMatchObject({
+        type: 'runpy',
+        module: null,
+        expression: 'module_name',
+      });
+    });
+
+    it('should trace runpy.run_module imports', async () => {
+      const mainFile = join(fixturesDir, 'runpy_cases', 'main.py');
+      const result = await pythonFileTrace([mainFile], {
+        base: join(fixturesDir, 'runpy_cases'),
+        analyzeDynamic: true,
+      });
+
+      const filePaths = Array.from(result.fileList);
+      const fileNames = filePaths.map((p) => p.split('/').pop());
+
+      expect(fileNames).toContain('main.py');
+      expect(fileNames).toContain('target_module.py');
+      expect(fileNames).toContain('aliased_target.py');
+    });
+
+    it('should trace runpy.run_path imports', async () => {
+      const mainFile = join(fixturesDir, 'runpy_cases', 'main.py');
+      const result = await pythonFileTrace([mainFile], {
+        base: join(fixturesDir, 'runpy_cases'),
+        analyzeDynamic: true,
+      });
+
+      const filePaths = Array.from(result.fileList);
+      const fileNames = filePaths.map((p) => p.split('/').pop());
+
+      expect(fileNames).toContain('runner.py');
     });
   });
 });

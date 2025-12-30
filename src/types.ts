@@ -132,15 +132,16 @@ export interface FromImportInfo {
 }
 
 /**
- * Dynamic import: __import__(), importlib.import_module()
+ * Dynamic import: __import__(), importlib.import_module(), runpy.run_module/run_path
  */
 export interface DynamicImportInfo {
-  type: 'builtin' | 'importlib';
+  type: 'builtin' | 'importlib' | 'runpy';
   module?: string; // Only if statically analyzable
   line: number;
   expression?: string; // The raw expression if not statically analyzable
   package?: string; // For importlib.import_module('.mod', package='pkg')
   level?: number; // Relative import level for dynamic imports with package
+  path?: string; // For runpy.run_path('script.py')
 }
 
 /**
