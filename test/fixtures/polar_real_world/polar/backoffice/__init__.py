@@ -1,0 +1,3 @@
+"""Backoffice application."""
+
+app = None

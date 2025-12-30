@@ -1,0 +1,3 @@
+"""Search endpoints."""
+
+router = None
