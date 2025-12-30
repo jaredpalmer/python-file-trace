@@ -1,6 +1,6 @@
 {
   "name": "python-file-trace",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Determine exactly which files are necessary to run a Python application",
   "type": "module",
   "main": "./dist/index.cjs",
